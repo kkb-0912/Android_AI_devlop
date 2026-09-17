@@ -1,0 +1,264 @@
+:root {
+  --particle: 190, 230, 255;
+  --particle-core: 235, 250, 255;
+  --label: 150, 180, 210;
+  --response: 150, 190, 255;
+  --error: 255, 120, 120;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: -apple-system, "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  color: #fff;
+  user-select: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+#orbCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 상태 라벨 (LISTENING / THINKING / SPEAKING) */
+#stateLabel {
+  position: absolute;
+  left: 50%;
+  top: 74%;
+  transform: translate(-50%, 0);
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(var(--label), 0.75);
+  text-align: center;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* 아이들 상태일 때 나오는 비서 이름 워드마크 */
+#wordmark {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  transform: translate(-50%, 0);
+  font-size: 13px;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: rgba(var(--label), 0.45);
+  text-align: center;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+/* 마지막 대화(질문/응답) 텍스트 */
+#transcriptArea {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  transform: translateX(-50%);
+  width: min(680px, 84vw);
+  text-align: center;
+  pointer-events: none;
+}
+#transcriptArea .line {
+  font-size: 17px;
+  line-height: 1.6;
+  color: rgba(var(--response), 0.92);
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  text-wrap: balance;
+}
+#transcriptArea .line.show { opacity: 1; }
+#transcriptArea .user-line {
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 10px;
+}
+
+/* 우측 상단의 아주 은은한 메뉴 버튼 */
+#menuBtn {
+  position: absolute;
+  top: 22px;
+  right: 26px;
+  width: 30px; height: 30px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.28);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 20;
+  transition: color 0.2s ease;
+  line-height: 1;
+}
+#menuBtn:hover { color: rgba(255,255,255,0.75); }
+
+/* 시작 전 오버레이 */
+#startOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #000;
+  z-index: 30;
+  cursor: pointer;
+  transition: opacity 0.5s ease;
+}
+#startOverlay .brand {
+  font-size: 15px;
+  letter-spacing: 0.6em;
+  color: rgba(var(--label), 0.7);
+  text-transform: uppercase;
+  padding-left: 0.6em; /* letter-spacing 보정 */
+}
+#startOverlay .hint {
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.32);
+  letter-spacing: 0.05em;
+}
+#startOverlay.hidden { opacity: 0; pointer-events: none; }
+
+/* 설정 오버레이 */
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.86);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 20px;
+}
+.settings-overlay.hidden { display: none; }
+.settings-panel {
+  width: 100%;
+  max-width: 420px;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: #0a0a0c;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 22px;
+}
+.settings-panel h2 {
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(var(--label), 0.85);
+  margin: 0 0 18px;
+  font-weight: 500;
+}
+.settings-panel label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin: 16px 0 6px;
+}
+.settings-panel input,
+.settings-panel textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 13px;
+  color: #fff;
+  font-family: inherit;
+}
+.settings-panel .hint {
+  font-size: 11px;
+  color: rgba(255,255,255,0.32);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.settings-panel .hint a { color: rgba(var(--response), 0.85); }
+.lan-box {
+  margin-top: 18px;
+  padding: 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+.lan-box code {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(var(--response), 0.9);
+  word-break: break-all;
+}
+.settings-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+.btn-ghost, .btn-solid {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.btn-ghost { background: rgba(255,255,255,0.08); color: #fff; }
+.btn-solid { background: rgba(var(--response), 0.9); color: #000; font-weight: 600; }
+
+.mic-fallback-hint {
+  position: absolute;
+  bottom: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10.5px;
+  color: rgba(255,255,255,0.22);
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+
+/* 텍스트 입력(음성 인식 미지원 브라우저용 폴백) */
+#textFallback {
+  position: absolute;
+  bottom: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 84vw);
+  display: none;
+  gap: 8px;
+  z-index: 15;
+}
+#textFallback.show { display: flex; }
+#textFallback input {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 9px 16px;
+  color: #fff;
+  font-size: 13px;
+}
+#textFallback button {
+  border: none;
+  border-radius: 20px;
+  padding: 0 16px;
+  background: rgba(var(--response), 0.85);
+  color: #000;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}

@@ -1,0 +1,8 @@
+{
+  "api_key": "",
+  "assistant_name": "나만의 AI 비서",
+  "persona": "general",
+  "system_prompt": "",
+  "port": 5050,
+  "claude_model": "claude-sonnet-5"
+}

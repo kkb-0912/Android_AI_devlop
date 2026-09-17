@@ -1,0 +1,7 @@
+Flask~=3.0
+requests~=2.31
+wikipedia~=1.4.0
+pyjokes==0.6.0
+pyautogui~=0.9.54
+langdetect~=1.0.9
+pywebview~=5.1

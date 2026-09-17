@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>{{ cfg.assistant_name }}</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" href="/static/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="stage"
+     data-lan-url="{{ cfg.lan_url }}"
+     data-has-key="{{ 'true' if cfg.has_api_key else 'false' }}"
+     data-name="{{ cfg.assistant_name }}">
+
+  <canvas id="orbCanvas"></canvas>
+
+  <div id="stateLabel"></div>
+  <div id="wordmark">{{ cfg.assistant_name }}</div>
+
+  <div id="transcriptArea">
+    <div class="line user-line" id="userLine"></div>
+    <div class="line" id="responseLine"></div>
+  </div>
+
+  <div id="textFallback">
+    <input id="textFallbackInput" type="text" placeholder="말하듯이 입력해보세요...">
+    <button id="textFallbackSend">전송</button>
+  </div>
+  <div class="mic-fallback-hint" id="micFallbackHint"></div>
+
+  <button id="menuBtn" title="설정">⋯</button>
+
+  <div id="startOverlay">
+    <div class="brand">{{ cfg.assistant_name }}</div>
+    <div class="hint">화면을 눌러 시작하세요 · 헤드폰 사용을 권장해요</div>
+  </div>
+
+  <div class="settings-overlay hidden" id="settingsOverlay">
+    <div class="settings-panel">
+      <h2>Settings</h2>
+
+      <label>Anthropic API 키</label>
+      <input id="apiKeyInput" type="password" placeholder="{{ '저장됨 (변경하려면 새로 입력)' if cfg.has_api_key else 'sk-ant-...' }}">
+      <p class="hint">API 키가 없어도 시간·날짜·위키백과·앱 실행 같은 명령은 바로 동작해요.
+        <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>에서 발급받을 수 있어요.</p>
+
+      <label>비서 이름</label>
+      <input id="nameInput" type="text" value="{{ cfg.assistant_name }}">
+
+      <label>시스템 프롬프트 (선택 — 비워두면 상황에 맞게 알아서 대응해요)</label>
+      <textarea id="promptInput" rows="3">{{ cfg.system_prompt }}</textarea>
+
+      <div class="lan-box">
+        <label style="margin:0;">📱 안드로이드에서 접속하기</label>
+        <p class="hint">같은 Wi-Fi의 폰 크롬 브라우저에서 아래 주소를 열어보세요.</p>
+        <code>{{ cfg.lan_url }}</code>
+      </div>
+
+      <div class="settings-btns">
+        <button id="settingsCancel" class="btn-ghost">닫기</button>
+        <button id="settingsSave" class="btn-solid">저장</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
