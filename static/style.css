@@ -38,14 +38,16 @@ html, body {
   left: 50%;
   top: 74%;
   transform: translate(-50%, 0);
+  width: min(320px, 88vw);
   font-size: 11px;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(var(--label), 0.75);
   text-align: center;
   transition: opacity 0.4s ease;
   pointer-events: none;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.6;
 }
 
 /* 아이들 상태일 때 나오는 비서 이름 워드마크 */

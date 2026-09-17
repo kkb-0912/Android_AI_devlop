@@ -230,9 +230,16 @@
   const STATE_TEXT = { listening: "LISTENING", thinking: "THINKING", speaking: "SPEAKING", error: "ERROR" };
   let wordmarkTimer = null;
 
+  // "ready" = 대기 상태(자동으로 듣지 않음). 스페이스바/엔터/화면 클릭으로 한 번씩 듣기 시작.
   function setUiState(name) {
-    Orb.setState(name);
-    if (STATE_TEXT[name]) {
+    const visualName = name === "ready" ? "idle" : name;
+    Orb.setState(visualName);
+
+    if (name === "ready") {
+      stateLabel.textContent = "SPACE 또는 클릭해서 말하기";
+      stateLabel.style.opacity = "1";
+      wordmark.style.opacity = "1";
+    } else if (STATE_TEXT[name]) {
       stateLabel.textContent = STATE_TEXT[name];
       stateLabel.style.opacity = "1";
       wordmark.style.opacity = "0";
@@ -304,87 +311,125 @@
 
       speak(data.text, data.lang || uiLang, () => {
         busy = false;
-        resumeListening();
+        setUiState("ready");
       });
     } catch (e) {
       showResponse(text, "⚠️ 서버에 연결할 수 없어요.");
       setUiState("error");
       busy = false;
-      setTimeout(resumeListening, 1500);
+      setTimeout(() => setUiState("ready"), 1200);
     }
   }
 
   // ─────────────────────────────────────────────────────────
-  //  연속 음성 인식 루프 (핸즈프리)
+  //  음성 인식 — 눌러서 시작 / 다시 눌러서 종료(토글) 방식
+  //  continuous=false는 브라우저가 아주 짧은 침묵도 "말 끝남"으로 판단해서
+  //  1초 만에 끊기는 경우가 많아, continuous+interimResults로 바꾸고
+  //  사용자가 직접 종료 신호(스페이스바/클릭)를 줄 때까지 계속 듣도록 함.
   // ─────────────────────────────────────────────────────────
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognizer = null;
-  let active = false;      // 전체 루프 on/off
+  let started = false;     // 시작 오버레이를 지났는지
   let recognizing = false; // 현재 recognizer.start() 상태
-
-  function resumeListening() {
-    if (!active || busy) return;
-    setUiState("listening");
-    startRecognizer();
-  }
+  let finalText = "";
+  let lastInterim = "";
+  let lastErrorCode = null;
 
   function startRecognizer() {
-    if (!recognizer || recognizing) return;
+    if (!recognizer || recognizing || busy) return;
+    finalText = "";
+    lastInterim = "";
+    lastErrorCode = null;
+    micFallbackHint.textContent = "다시 누르거나 스페이스바를 눌러 말하기 종료";
     try {
       recognizer.lang = uiLang === "en" ? "en-US" : "ko-KR";
       recognizer.start();
     } catch (e) {
-      /* 이미 시작된 경우 무시 */
+      /* 이미 시작된 경우 등은 무시 */
     }
+  }
+
+  function toggleListen() {
+    if (!started || !recognizer || busy) return;
+    if (recognizing) {
+      try {
+        recognizer.stop();
+      } catch (e) {}
+      return;
+    }
+    setUiState("listening");
+    startRecognizer();
   }
 
   if (SpeechRecognition) {
     recognizer = new SpeechRecognition();
-    recognizer.continuous = false;
-    recognizer.interimResults = false;
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
 
     recognizer.onstart = () => {
       recognizing = true;
     };
+
+    recognizer.onresult = (event) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        if (res.isFinal) {
+          finalText += res[0].transcript;
+        } else {
+          interim += res[0].transcript;
+        }
+      }
+      if (interim) {
+        lastInterim = interim;
+        showResponse(interim, ""); // 말하는 동안 실시간 자막처럼 표시
+      }
+    };
+
+    recognizer.onerror = (e) => {
+      lastErrorCode = e.error; // 실제 처리는 onend에서 (error 다음엔 항상 end가 옴)
+    };
+
     recognizer.onend = () => {
       recognizing = false;
-      // 계속 듣기 모드면 자동 재시작 (말하는 중/처리 중이 아닐 때만)
-      if (active && !busy) {
-        setTimeout(startRecognizer, 250);
-      }
-    };
-    recognizer.onerror = (e) => {
-      recognizing = false;
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        setUiState("error");
-        showResponse("", "🎤 마이크 권한을 허용해주세요.");
-        active = false;
+      micFallbackHint.textContent = "";
+      if (busy) return;
+
+      const text = (finalText || lastInterim || "").trim();
+      if (text) {
+        sendText(text);
         return;
       }
-      // no-speech, aborted 등은 조용히 재시도
-      if (active && !busy) {
-        setTimeout(startRecognizer, 400);
+
+      if (lastErrorCode === "not-allowed" || lastErrorCode === "service-not-allowed") {
+        showResponse("", "🎤 마이크 권한을 허용한 뒤 다시 눌러주세요.");
+      } else if (lastErrorCode && lastErrorCode !== "no-speech" && lastErrorCode !== "aborted") {
+        showResponse("", `⚠️ 마이크 오류: ${lastErrorCode}. 인터넷 연결이나 방화벽/보안 프로그램(백신, 자녀보호 앱 등)이 음성 인식을 막고 있는지 확인해보세요.`);
       }
-    };
-    recognizer.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      if (transcript && transcript.trim()) {
-        sendText(transcript.trim());
-      }
+      setUiState("ready");
     };
   } else {
     micFallbackHint.textContent = "이 브라우저는 음성 인식을 지원하지 않아요. 아래에 입력해주세요. (Chrome 권장)";
     textFallback.classList.add("show");
   }
 
-  function beginHandsFree() {
-    active = true;
-    if (SpeechRecognition) {
-      resumeListening();
-    } else {
-      setUiState("idle");
-    }
-  }
+  // 스페이스바 / 엔터 = 말하기 시작·종료 토글 (입력창 포커스나 설정창이 열려있을 땐 무시)
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "Space" && e.code !== "Enter") return;
+    if (e.repeat) return; // 키를 누르고 있을 때 반복 입력 무시
+    const tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (!settingsOverlay.classList.contains("hidden")) return;
+    if (!startOverlay.classList.contains("hidden")) return;
+    e.preventDefault();
+    toggleListen();
+  });
+
+  // 화면(오브) 클릭 = 말하기 시작·종료 토글
+  canvas.addEventListener("click", () => {
+    if (!startOverlay.classList.contains("hidden")) return;
+    toggleListen();
+  });
 
   // ─────────────────────────────────────────────────────────
   //  시작 오버레이 (오디오 자동재생 정책 대응)
@@ -397,7 +442,8 @@
       warm.volume = 0;
       window.speechSynthesis.speak(warm);
     } catch (e) {}
-    beginHandsFree();
+    started = true;
+    setUiState(recognizer ? "ready" : "idle");
   }, { once: true });
 
   // ─────────────────────────────────────────────────────────
